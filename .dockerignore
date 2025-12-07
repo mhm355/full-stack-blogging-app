@@ -1,0 +1,7 @@
+Docker*
+mvnw*
+notes*
+*enkinsfile
+*.md
+*.log
+.vscode/

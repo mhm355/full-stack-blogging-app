@@ -1,0 +1,36 @@
+cd Terraform
+
+terraform init
+
+terraform validate
+
+terraform plan
+
+terraform apply -auto-approve
+
+
+
+aws eks update-kubeconfig --region us-east-1 --name development-blogging-eks-cluster
+
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.2/deploy/static/provider/aws/deploy.yaml
+
+kubectl get service ingress-nginx-controller -n ingress-nginx
+
+
+
+cd ../Helm
+
+helm init
+
+helm install --dry-run --debug blogging-stack
+
+helm upgrade --install blogging-stack 
+
+helm uninstall blogging-stack
+
+
+cd ../Terraform
+
+kubectl delete service ingress-nginx-controller -n ingress-nginx
+
+terraform destroy -auto-approve

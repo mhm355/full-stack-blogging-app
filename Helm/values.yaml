@@ -1,0 +1,61 @@
+# Namespace
+namespace: 
+  app: blogging-app
+  monitoring: monitoring
+
+# ------------------------------------------------
+# Application Settings
+# ------------------------------------------------
+app:
+  name: blogging-app
+  replicas: 1
+  image:
+    repository: mhmdocker1/fullstack-blogging-app
+    tag: v1.3
+  service:
+    type: ClusterIP
+    port: 80
+  resources:
+    limits:
+      memory: 500Mi
+      cpu: 500m
+    requests:
+      memory: 250Mi
+      cpu: 250m
+
+# ------------------------------------------------
+# 2. Database Settings (MySQL)
+# ------------------------------------------------
+mysql:
+  enabled: true
+  image: mysql:8.4
+  rootPassword: "blogging-app" 
+  user: blogging
+  password: "blogging-app"
+  database: mysqldb
+  persistence:
+    storageClass: gp3
+    size: 2Gi
+  resources:
+    requests:
+      memory: 250Mi
+      cpu: 100m
+    limits:
+      memory: 500Mi
+      cpu: 200m
+
+# ------------------------------------------------
+# 3. Monitoring Settings (Prometheus & Grafana)
+# ------------------------------------------------
+monitoring:
+  enabled: true
+  prometheus:
+    image: prom/prometheus:v2.47.1
+    retention: 15d
+    persistence:
+      size: 2Gi
+  grafana:
+    image: grafana/grafana:9.5.2
+    adminPassword: "admin" 
+    persistence:
+      size: 1Gi

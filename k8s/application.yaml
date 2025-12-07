@@ -1,0 +1,103 @@
+# Service for Fullstack Blogging App
+apiVersion: v1
+kind: Service
+metadata:
+  name: blogging-app-service
+  namespace: blogging-app
+spec:
+  selector:
+    app: blogging-app
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+---
+# Application Deployment for Fullstack Blogging App
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blogging-app-deployment
+  namespace: blogging-app
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels: 
+      app: blogging-app
+  template:
+    metadata:
+      labels:
+        app: blogging-app
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+    spec:
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: blogging-app
+          image: mhmdocker1/fullstack-blogging-app:v1.3
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+          ports:
+            - containerPort: 8080 
+          envFrom:
+            - configMapRef:
+                name: mysqldb-config
+            - secretRef:
+                name: mysqldb-secret
+          resources:
+            limits:
+              memory: 500Mi
+              cpu: 500m
+            requests:
+              memory: 250Mi
+              cpu: 250m
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 100
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 100
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 30"]
+---
+# Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-ingress
+  namespace: blogging-app
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: blogging-app-service
+              port:
+                number: 80

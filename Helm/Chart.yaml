@@ -1,0 +1,15 @@
+apiVersion: v2
+name: blogging-app
+description: A Helm chart for deploying a Fullstack Blogging App with MySQL, Prometheus, and Grafana.
+type: application
+
+version: 1.0.0
+
+appVersion: "v1.3"
+
+keywords:
+  - java
+  - mysql
+  - monitoring
+  - prometheus
+  - grafana

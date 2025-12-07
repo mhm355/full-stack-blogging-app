@@ -1,0 +1,129 @@
+# MySQL ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysqldb-config
+  namespace: blogging-app
+data:
+  MYSQL_HOST: mysqldb-svc
+  MYSQL_USER: blogging
+  MYSQL_DATABASE: mysqldb
+  MYSQL_PORT: "3306"
+---
+# MySQL Secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysqldb-secret
+  namespace: blogging-app
+type: Opaque
+stringData:
+  MYSQL_ROOT_USER: root
+  MYSQL_ROOT_PASSWORD: blogging-app
+  MYSQL_PASSWORD: blogging-app
+
+---
+# MySQL Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysqldb-svc
+  namespace: blogging-app
+spec:
+  selector:
+    app: mysqldb
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      port: 3306
+      targetPort: 3306
+---
+# MySQL Headless Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysqldb-hsvc
+  namespace: blogging-app
+spec:
+  selector:
+    app: mysqldb
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - protocol: TCP
+      port: 3306
+      targetPort: 3306
+
+---
+# MySQL StatefulSet 
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysqldb
+  namespace: blogging-app
+spec:
+  serviceName: mysqldb-hsvc
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: mysqldb
+  template:
+    metadata:
+      labels:
+        app: mysqldb
+    spec:
+      securityContext:
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+      containers:
+      - name: mysqldb
+        image: mysql:8.4
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3306
+          name: mysql
+        envFrom:
+          - configMapRef:
+              name: mysqldb-config
+          - secretRef:
+              name: mysqldb-secret
+        resources:
+            limits:
+              memory: 500Mi
+              cpu: 200m
+            requests:
+              memory: 250Mi
+              cpu: 100m
+        livenessProbe:
+            tcpSocket:
+              port: 3306
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+        readinessProbe:
+            tcpSocket: 
+              port: 3306
+            initialDelaySeconds: 5
+            periodSeconds: 10
+        startupProbe:
+            tcpSocket:
+              port: 3306
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 30
+        volumeMounts:
+          - name: mysqldb-storage
+            mountPath: /var/lib/mysql
+  volumeClaimTemplates:
+  - metadata:
+      name: mysqldb-storage
+    spec:
+      storageClassName: gp3
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 2Gi

@@ -1,0 +1,13 @@
+# Namespace for the Blogging Application
+# This namespace isolates the main application components.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: blogging-app  
+---
+# Namespace for Monitoring
+# This namespace isolates the monitoring components like Prometheus and Grafana.
+apiVersion: v1
+kind: Namespace
+metadata: 
+  name: monitoring

@@ -1,0 +1,36 @@
+# Role for Monitoring
+# This Role grants read-only access to resources within the 'monitoring' namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: monitoring-role
+  namespace: monitoring
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "endpoints"]
+    verbs: ["get", "list", "watch"]
+---
+# ServiceAccount for Monitoring
+# This ServiceAccount is used by the Prometheus pod to interact with the Kubernetes API.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: monitoring-sa
+  namespace: monitoring
+automountServiceAccountToken: true
+---
+# RoleBinding for Monitoring
+# This RoleBinding binds the 'monitoring-role' to the 'monitoring-sa' ServiceAccount within the 'monitoring' namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: monitoring-role-binding
+  namespace: monitoring
+subjects:
+  - kind: ServiceAccount
+    name: monitoring-sa
+    namespace: monitoring
+roleRef:
+  kind: Role
+  name: monitoring-role
+  apiGroup: rbac.authorization.k8s.io

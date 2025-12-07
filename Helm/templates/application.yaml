@@ -1,0 +1,105 @@
+# Service for Fullstack Blogging App
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.appService.name }}
+  namespace: {{ .Values.namespace.app }}
+spec:
+  selector:
+    {{- with .Values.appDeployment.labels }}
+  type: {{ .Values.appService.type }}
+  ports:
+    - protocol: TCP
+      port: {{ .Values.appService.ports.port }}
+      targetPort: 8080
+---
+# Application Deployment for Fullstack Blogging App
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.appDeployment.name }}
+  namespace: {{ .Values.appDeployment.namespace }}
+spec:
+  replicas: {{ .Values.appDeployment.replicas }}
+  strategy:
+    type: {{ .Values.appDeployment.strategy.type }}
+    rollingUpdate:
+      maxUnavailable: {{ .Values.appDeployment.strategy.rollingUpdate.maxUnavailable }}
+      maxSurge: {{ .Values.appDeployment.strategy.rollingUpdate.maxSurge }}
+  selector:
+    matchLabels: 
+      app: blogging-app
+  template:
+    metadata:
+      labels:
+        app: blogging-app
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+    spec:
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: blogging-app
+          image: {{ .Values.appDeployment.image.repository }}:{{ .Values.appDeployment.image.tag }}
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+          ports:
+            - c{{ .Values.appDeployment.containerPort }}
+          envFrom:
+            - configMapRef:
+                name: mysqldb-config
+            - secretRef:
+                name: mysqldb-secret
+          resources:
+            limits:
+              memory: {{ .Values.appDeployment.resources.limits.memory }}
+              cpu: {{ .Values.appDeployment.resources.limits.cpu }}
+            requests:
+              memory: {{ .Values.appDeployment.resources.requests.memory }}
+              cpu: {{ .Values.appDeployment.resources.requests.cpu }}
+              
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 100
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 100
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 30"]
+---
+# Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-ingress
+  namespace: {{ .Values.namespace.app }}
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: {{ .Values.appService.name }}
+              namespace: {{ .Values.namespace.app }}
+              port:
+                number: {{ .Values.appService.ports.port }}

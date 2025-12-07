@@ -1,0 +1,124 @@
+# MySQL ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysqldb-config
+  namespace: {{ .Values.namespace.app }}
+data:
+  MYSQL_HOST: mysqldb-svc
+  MYSQL_USER: blogging
+  MYSQL_DATABASE: mysqldb
+  MYSQL_PORT: "3306"
+---
+# MySQL Secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysqldb-secret
+  namespace: {{ .Values.namespace.app }}
+type: Opaque
+stringData:
+  MYSQL_ROOT_USER: root
+  MYSQL_ROOT_PASSWORD: {{ .Values.mysql.rootPassword | quote }}
+  MYSQL_PASSWORD: {{ .Values.mysql.password | quote }}
+
+---
+# MySQL Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysqldb-svc
+  namespace: {{ .Values.namespace.app }}
+spec:
+  selector:
+    app: mysqldb
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      port: 3306
+      targetPort: 3306
+---
+# MySQL Headless Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysqldb-hsvc
+  namespace: {{ .Values.namespace.app }}
+spec:
+  selector:
+    app: mysqldb
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - protocol: TCP
+      port: 3306
+      targetPort: 3306
+
+---
+# MySQL StatefulSet
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysqldb
+  namespace: {{ .Values.namespace.app }}
+spec:
+  serviceName: mysqldb-hsvc
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: mysqldb
+    spec:
+      securityContext:
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+      containers:
+      - name: mysqldb
+        image: {{ .Values.mysql.image }}
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3306
+          name: mysql
+        envFrom:
+          - configMapRef:
+              name: mysqldb-config
+          - secretRef:
+              name: mysqldb-secret
+        resources:
+            limits:
+              memory: {{ .Values.mysql.resources.limits.memory }}
+              cpu: {{ .Values.mysql.resources.limits.cpu }}
+            requests:
+              memory: {{ .Values.mysql.resources.requests.memory }}
+              cpu: {{ .Values.mysql.resources.requests.cpu }}
+        livenessProbe:
+            tcpSocket:
+              port: 3306
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+        readinessProbe:
+            tcpSocket: 
+              port: 3306
+            initialDelaySeconds: 5
+            periodSeconds: 10
+        startupProbe:
+            tcpSocket:
+              port: 3306
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 30
+        volumeMounts:
+          - name: mysqldb-storage
+            mountPath: /var/lib/mysql
+  volumeClaimTemplates:
+  - metadata:
+      name: mysqldb-storage
+    spec:
+      storageClassName: {{ .Values.mysql.persistence.storageClass }}
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: {{ .Values.mysql.persistence.size }}
