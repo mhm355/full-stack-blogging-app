@@ -91,43 +91,31 @@ resource "aws_route_table_association" "private" {
   route_table_id = aws_route_table.private.id
 }
 
+# ---------------------------------------------------------
+# Security Groups (Clean - No Inline Rules)
+# ---------------------------------------------------------
+
+# 1. Cluster Security Group (Control Plane)
 resource "aws_security_group" "blogging_cluster_sg" {
   vpc_id = aws_vpc.blogging_vpc.id
 
+  # Egress is safe to keep inline
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
   tags = { Name = "${var.environment}-blogging-cluster-sg" }
 }
 
+# 2. Node Security Group (Worker Nodes)
 resource "aws_security_group" "blogging_node_sg" {
   vpc_id = aws_vpc.blogging_vpc.id
 
-  ingress {
-    description = "Allow Node to Node communication"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    self        = true # This allows traffic from other resources in the same SG
-  }
-  ingress {
-    description = "Allow SSH access to Nodes"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] 
-  }
-
-  ingress {
-    description = "Allow traffic to NodePorts"
-    from_port   = 30000
-    to_port     = 32767
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+  # IMPORTANT: No 'ingress' blocks here!
+  # We define them all as separate resources below to avoid conflicts.
 
   egress {
     from_port   = 0
@@ -139,7 +127,41 @@ resource "aws_security_group" "blogging_node_sg" {
   tags = { Name = "${var.environment}-blogging-node-sg" }
 }
 
+# ---------------------------------------------------------
+# Security Group Rules (Everything Separated)
+# ---------------------------------------------------------
 
+# Rule 1: Allow Node-to-Node communication (Was Inline)
+resource "aws_security_group_rule" "node_ingress_self" {
+  type              = "ingress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  security_group_id = aws_security_group.blogging_node_sg.id
+  self              = true
+}
+
+# Rule 2: Allow SSH (Was Inline)
+resource "aws_security_group_rule" "node_ingress_ssh" {
+  type              = "ingress"
+  from_port         = 22
+  to_port           = 22
+  protocol          = "tcp"
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.blogging_node_sg.id
+}
+
+# Rule 3: Allow NodePorts (Was Inline - keeping it if you need it, or delete if not)
+resource "aws_security_group_rule" "node_ingress_nodeports" {
+  type              = "ingress"
+  from_port         = 30000
+  to_port           = 32767
+  protocol          = "tcp"
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.blogging_node_sg.id
+}
+
+# Rule 4: Cluster accepts HTTPS from Nodes (The Cycle Fix)
 resource "aws_security_group_rule" "cluster_ingress_node_https" {
   description              = "Allow HTTPS from Worker Nodes"
   type                     = "ingress"
@@ -150,6 +172,7 @@ resource "aws_security_group_rule" "cluster_ingress_node_https" {
   source_security_group_id = aws_security_group.blogging_node_sg.id
 }
 
+# Rule 5: Nodes accept all traffic from Cluster (THE MISSING LOGS FIX)
 resource "aws_security_group_rule" "node_ingress_cluster" {
   description              = "Allow communication from Cluster Control Plane"
   type                     = "ingress"

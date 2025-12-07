@@ -53,6 +53,16 @@ spec:
                 name: mysqldb-config
             - secretRef:
                 name: mysqldb-secret
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:mysql://$(MYSQL_HOST):$(MYSQL_PORT)/$(MYSQL_DATABASE)?allowPublicKeyRetrieval=true&useSSL=false"
+            - name: SPRING_DATASOURCE_USERNAME
+              value: "$(MYSQL_USER)"
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysqldb-secret
+                  key: MYSQL_PASSWORD
           resources:
             limits:
               memory: 500Mi
