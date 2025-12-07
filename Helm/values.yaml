@@ -13,6 +13,7 @@ app:
     repository: mhmdocker1/fullstack-blogging-app
     tag: v1.3
   service:
+    name: blogging-app-service
     type: ClusterIP
     port: 80
   resources:

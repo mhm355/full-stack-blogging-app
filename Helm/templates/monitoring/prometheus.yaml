@@ -40,10 +40,9 @@ data:
             action: replace
             target_label: kubernetes_pod_name
       - job_name: 'blogging-app'
+        metrics_path: /actuator/prometheus
         static_configs:
-          # Dynamic Namespace mapping
           - targets: ['{{ .Values.app.service.name }}.{{ .Values.namespace.app }}.svc.cluster.local:{{ .Values.app.service.port }}']
-
 ---
 # Prometheus PersistentVolumeClaim
 apiVersion: v1

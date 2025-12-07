@@ -16,13 +16,14 @@ kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/cont
 
 kubectl get service ingress-nginx-controller -n ingress-nginx
 
-a4e18467d65764ca29b35a190ab75ffc-3c72bec31f44410a.elb.us-east-1.amazonaws.com
 
-aa960be8a677f4c12975a42057012bcd-1969737194.us-east-1.elb.amazonaws.com
+
 
 kubectl create namespace argocd
 
 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
 
 kubectl get svc argocd-server -n argocd 
 
