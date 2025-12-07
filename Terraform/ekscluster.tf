@@ -30,10 +30,10 @@ resource "aws_eks_node_group" "blogging_nodegroup" {
     version = "$Latest"
   }
 
-  remote_access {
+  /*remote_access {
     ec2_ssh_key               = var.ssh_key_name
     source_security_group_ids = [aws_security_group.blogging_node_sg.id]
-  }
+  }*/
 
   scaling_config {
     desired_size = var.node_group_desired_size
@@ -71,6 +71,12 @@ resource "aws_launch_template" "blogging_lt" {
   name_prefix   = "${var.environment}-blogging-lt"
   
   instance_type = var.instance_types 
+
+  key_name = var.ssh_key_name
+
+  vpc_security_group_ids = [
+    aws_security_group.blogging_node_sg.id
+  ]
 
   metadata_options {
     http_endpoint               = "enabled"

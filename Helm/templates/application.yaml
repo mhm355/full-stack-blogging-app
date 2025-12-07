@@ -1,38 +1,43 @@
-# Service for Fullstack Blogging App
+# ------------------------------------------------
+# Service
+# ------------------------------------------------
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Values.appService.name }}
+  name: {{ .Values.app.name }}-service
   namespace: {{ .Values.namespace.app }}
 spec:
   selector:
-    {{- with .Values.appDeployment.labels }}
-  type: {{ .Values.appService.type }}
+    app: {{ .Values.app.name }}
+  type: {{ .Values.app.service.type }}
   ports:
     - protocol: TCP
-      port: {{ .Values.appService.ports.port }}
+      port: {{ .Values.app.service.port }}
       targetPort: 8080
+
 ---
-# Application Deployment for Fullstack Blogging App
+# ------------------------------------------------
+# Deployment
+# ------------------------------------------------
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Values.appDeployment.name }}
-  namespace: {{ .Values.appDeployment.namespace }}
+  name: {{ .Values.app.name }}-deployment
+  namespace: {{ .Values.namespace.app }}
 spec:
-  replicas: {{ .Values.appDeployment.replicas }}
+  replicas: {{ .Values.app.replicas }}
   strategy:
-    type: {{ .Values.appDeployment.strategy.type }}
+    type: RollingUpdate
     rollingUpdate:
-      maxUnavailable: {{ .Values.appDeployment.strategy.rollingUpdate.maxUnavailable }}
-      maxSurge: {{ .Values.appDeployment.strategy.rollingUpdate.maxSurge }}
+      maxUnavailable: 1
+      maxSurge: 1
   selector:
     matchLabels: 
-      app: blogging-app
+      app: {{ .Values.app.name }}
   template:
     metadata:
       labels:
-        app: blogging-app
+        app: {{ .Values.app.name }}
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "8080"
@@ -40,14 +45,14 @@ spec:
       terminationGracePeriodSeconds: 60
       containers:
         - name: blogging-app
-          image: {{ .Values.appDeployment.image.repository }}:{{ .Values.appDeployment.image.tag }}
+          image: "{{ .Values.app.image.repository }}:{{ .Values.app.image.tag }}"
           imagePullPolicy: IfNotPresent
           securityContext:
             runAsUser: 1000
             runAsGroup: 1000
             allowPrivilegeEscalation: false
           ports:
-            - c{{ .Values.appDeployment.containerPort }}
+            - containerPort: 8080 
           envFrom:
             - configMapRef:
                 name: mysqldb-config
@@ -55,11 +60,11 @@ spec:
                 name: mysqldb-secret
           resources:
             limits:
-              memory: {{ .Values.appDeployment.resources.limits.memory }}
-              cpu: {{ .Values.appDeployment.resources.limits.cpu }}
+              memory: {{ .Values.app.resources.limits.memory }}
+              cpu: {{ .Values.app.resources.limits.cpu }}
             requests:
-              memory: {{ .Values.appDeployment.resources.requests.memory }}
-              cpu: {{ .Values.appDeployment.resources.requests.cpu }}
+              memory: {{ .Values.app.resources.requests.memory }}
+              cpu: {{ .Values.app.resources.requests.cpu }}
               
           livenessProbe:
             httpGet:
@@ -81,8 +86,11 @@ spec:
             preStop:
               exec:
                 command: ["sh", "-c", "sleep 30"]
+
 ---
+# ------------------------------------------------
 # Ingress
+# ------------------------------------------------
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -99,7 +107,6 @@ spec:
           pathType: Prefix
           backend:
             service:
-              name: {{ .Values.appService.name }}
-              namespace: {{ .Values.namespace.app }}
+              name: {{ .Values.app.name }}-service
               port:
-                number: {{ .Values.appService.ports.port }}
+                number: {{ .Values.app.service.port }}

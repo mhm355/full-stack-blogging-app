@@ -64,6 +64,9 @@ metadata:
 spec:
   serviceName: mysqldb-hsvc
   replicas: 1
+  selector:
+    matchLabels:
+      app: mysqldb
   template:
     metadata:
       labels:
